@@ -1,0 +1,18 @@
+{
+  "name": "chunks-client-apparatus",
+  "version": "1.0.0",
+  "description": "manual chunks-datastore client for testing",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "client": "node index.js",
+    "test": "test"
+  },
+  "author": "leafstreamcreation",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "crypto-js": "^4.1.1",
+    "dotenv": "^16.0.1"
+  }
+}
