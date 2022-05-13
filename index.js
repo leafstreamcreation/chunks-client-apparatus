@@ -2,6 +2,10 @@ import 'dotenv/config';
 
 import axios from "axios";
 
+const instance = axios.create({
+    baseURL: process.env.BACKEND_URL,
+    timeout: 1000
+});
 
 function clientRequest(args) {
     if (args[0] === "ping") ping();
@@ -13,7 +17,14 @@ function clientRequest(args) {
 }
 
 function ping() {
-    console.log('PING');
+    instance.get("/").then((res) => {
+        if (res.status === 200) {
+            console.log("Ping: ", res.data);
+        }
+        else console.log("Ping: Error");
+    }).catch((err) => {
+        console.log('ERROR: ', err);
+    });
 }
 
 function invite([ticket, password = process.env.ADMIN_PASS]) {
