@@ -40,16 +40,14 @@ function signup([ticket, name = "User", password = "secret123"]) {
     //handle deadbeef credentials
     else if (name === "deadbeef" || password === "deadbeef") post("/signup", () => { return { body: { ticket } }; });
     else post("/signup", () => { 
-        //TODO
-        //encrypt ticket
-        //encrypt credentials
-        return { body: { ticket, name } } 
+        const cTicket = pack(ticket);
+        const cCreds = packCredentials(name, password);
+        return { body: { ticket: cTicket, credentials: cCreds } };
     }, (res) => {
-        //TODO
-        //receive token, activities, updateKey
-        //decrypt and break token into name, password
-        //decrypt updateKey
-        //Promise.resolve array
+        const { token, activities, updateKey } = res.data;
+        const { name: tName, password: tPass } = unpackToken(token);
+        const key = unpackKey(updateKey, tName);
+        return Promise.resolve([tName, tPass, key, activities]);
     });
 }
 
@@ -102,7 +100,7 @@ function post(url, propGenerator = () => undefined, postResponse = (res) => Prom
     instance.post(url, props?.body || {}, { headers: props?.headers })
         .then(postResponse)
         .then((out) => { console.log("RES: ", ...out); })
-        .catch((err) => { console.log(err.response.status, err.response.data); });
+        .catch((err) => { console.log(err.response ? [err.response.status, err.response.data] : err); });
 }
 
 function pack(val) {
@@ -115,14 +113,14 @@ function packCredentials(name, password) {
 }
 
 function unpackToken({ name: cName, credentials: cCred }) {
-    const name = CryptoJS.AES.decrypt(cName, `${process.env.APP_SIGNATURE + process.env.OUTBOUND_NAME}`).toString(CryptoJS.enc.Utf8);
-    const credentials = CryptoJS.AES.decrypt(cCred, name + `${process.env.APP_SIGNATURE + process.env.OUTBOUND_CRED}`).toString(CryptoJS.enc.Utf8);
+    const name = CryptoJs.AES.decrypt(cName, `${process.env.APP_SIGNATURE + process.env.OUTBOUND_NAME}`).toString(CryptoJs.enc.Utf8);
+    const credentials = CryptoJs.AES.decrypt(cCred, name + `${process.env.APP_SIGNATURE + process.env.OUTBOUND_CRED}`).toString(CryptoJs.enc.Utf8);
     const [ _, password ] = credentials.split(process.env.CRED_SEPARATOR);
     return { name, password };
 }
 
-function unpackKey(updateKey, name) {
-    return CryptoJS.AES.decrypt(cKeyIn, name + `${process.env.APP_SIGNATURE}${process.env.OUTBOUND_KEY}`).toString(CryptoJS.enc.Utf8);
+function unpackKey(cKeyIn, name) {
+    return CryptoJs.AES.decrypt(cKeyIn, name + `${process.env.APP_SIGNATURE}${process.env.OUTBOUND_KEY}`).toString(CryptoJs.enc.Utf8);
 }
 
 clientRequest(process.argv.slice(2));
