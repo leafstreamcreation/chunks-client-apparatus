@@ -18,10 +18,7 @@ function clientRequest(args) {
 
 function ping() {
     instance.get("/").then((res) => {
-        if (res.status === 200) {
-            console.log("Ping: ", res.data);
-        }
-        else console.log("Ping: Error");
+        console.log("Ping: ", res.status, res.data);
     }).catch((err) => {
         console.log('ERROR: ', err);
     });
@@ -29,13 +26,33 @@ function ping() {
 
 function invite([ticket, password = process.env.ADMIN_PASS]) {
     //handle no ticket
-    //handle deadbeef ticket
+    if (!ticket || ticket === "deadbeef") {
+        instance.post("/invite").then((res) => {
+            console.log("Invite: ", res.status, res.data);
+        }).catch((err) => {
+            console.log('ERROR: ', err.response.status, err.response.data);
+        });
+    }
     //handle deadbeef password
-    //axios with ticket and pw in body
-    
-    //console ticket creation success
-    //or console failure
-    console.log('INVITE');
+    else if (password === "deadbeef") {
+        instance.post("/invite", {
+            ticket
+        }).then((res) => {
+            console.log("Invite: ", res.status, res.data);
+        }).catch((err) => {
+            console.log('ERROR: ', err.response.status, err.response.data);
+        });
+    }
+    else {
+        instance.post("/invite", {
+            password,
+            ticket
+        }).then((res) => {
+            console.log("Invite: ", res.status, res.data);
+        }).catch((err) => {
+            console.log('ERROR: ', err.response.status, err.response.data);
+        });
+    }
 }
 
 function signup([ticket, name = "User", password = "secret123"]) {
