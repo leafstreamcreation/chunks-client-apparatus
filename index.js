@@ -65,23 +65,22 @@ function login([name = "User", password = "secret123"]) {
     });
 }
 
-function update([ update = "0", body = "deadbeef", name = "User", password = "secret123" ]) {
-    //encrypt credentials with separator and tokenGen
-    //encrypt key with keygen
-
-    //handle deadbeef body:
-        //axios with encrypted name and credentials, and update in header
-        
-        //console failure or listening
-
-    //handle body:
-        //split body string and construct update body object
-        //axios with encrypted name/creds/update in header, update body in body
-        //console failure
-        //or decrypt new key with revealKey
-        //then console new key
-    console.log('UPDATE');
-}
+function update([ update = "1", body = "deadbeef", name = "User", password = "secret123" ]) {
+    //handle deadbeef name / password / update
+    if (name === "deadbeef" || password === "deadbeef" || update === "deadbeef") post("/update", () => {
+        const rBody = body !== "deadbeef" ? parseUpdateBody(body) : undefined;
+        return { body: rBody };
+    });
+    else post("/update", () => {
+            const headers = packHeaders(name, password, update);
+            const rBody = body !== "deadbeef" ? parseUpdateBody(body) : undefined;
+            return { body: rBody, headers };
+        }, (res) => {
+            const { updateKey } = res.data;
+            const output = updateKey ? [ unpackKey(updateKey, name) ] : [ res.status, res.data ];
+            return Promise.resolve(output);
+    });
+}.0``
 
 function parseUpdateBody(bodyStr) {
     //TODO
@@ -89,12 +88,24 @@ function parseUpdateBody(bodyStr) {
 }
 
 function packHeaders(name, password, update) {
-    //TODO
+    const token = tokenGen(name, password);
+    const key = CryptoJS.AES.encrypt(update, name + `${process.env.APP_SIGNATURE + process.env.OUTBOUND_KEY}`).toString();
     return {
-        name,
-        credentials: password,
-        update
-    }
+        name: token.name,
+        credentials: token.credentials,
+        update: key
+    };
+}
+
+function tokenGen(name, password, mutator = (n,p) => n + (p ? process.env.CRED_SEPARATOR + p : "")) {
+    const encName = CryptoJs.AES.encrypt(name, `${process.env.APP_SIGNATURE + process.env.OUTBOUND_NAME}`);
+    const nameToken = encName.toString();
+    // CryptoJs.enc.Base64.stringify(CryptoJs.enc.Utf8.parse(encName.toString()));
+    const literal = mutator(name, password);
+    const encCred = CryptoJs.AES.encrypt(literal, name + `${process.env.APP_SIGNATURE + process.env.OUTBOUND_CRED}`);
+    const credToken = encCred.toString();
+    //CryptoJs.enc.Base64.stringify(CryptoJs.enc.Utf8.parse(encCred.toString()));
+    return { name:nameToken, credentials:credToken };
 }
 
 function post(url, propGenerator = () => undefined, postResponse = (res) => Promise.resolve([res.status, res.data])) {
