@@ -53,14 +53,16 @@ function signup([ticket, name = "User", password = "secret123"]) {
 
 function login([name = "User", password = "secret123"]) {
     //handle deadbeef name / password
-    
-    //encrypt credentials with separator
-    //axios with encrypted credentials in body
-
-    //console failure
-    //or decrypt token and updateKey
-    //then console name, activities, updateKey
-    console.log('LOGIN');
+    if (name === "deadbeef" || password === "deadbeef") post("/login");
+    else post("/login", () => {
+            const cCreds = packCredentials(name, password);
+            return { body: { credentials: cCreds } };
+        }, (res) => {
+            const { token, activities, updateKey } = res.data;
+            const { name: tName, password: tPass } = unpackToken(token);
+            const key = unpackKey(updateKey, tName);
+            return Promise.resolve([tName, tPass, key, activities]);
+    });
 }
 
 function update([ update = "0", body = "deadbeef", name = "User", password = "secret123" ]) {
