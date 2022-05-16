@@ -82,9 +82,43 @@ function update([ update = "1", body = "deadbeef", name = "User", password = "se
     });
 }.0``
 
-function parseUpdateBody(bodyStr) {
-    //TODO
-    return [];
+function parseUpdateBody(updateStr) {
+    const instructions = []
+    const opStrs = updateStr.split("~z");
+    for (const opStr of opStrs) {
+        const [ op, ...val ] = opStr.split("^&");
+        if (op === "1") {
+            //delete
+            const [ id ] = val;
+            if (id && id !== "!?") instructions.push({ op: parseInt(op), id: parseInt(id) });
+        }
+        else if (op === "2") {
+            //edit
+            const [ id, history, name ] = val;
+            if (id && id !== "!?" && history && !(history === "!?" && (!name || name === "!?"))) {
+                const nVal = { history: JSON.parse(history) };
+                if (name && name !== "!?") nVal.name = name;
+                instructions.push({ op: parseInt(op), id: parseInt(id), val: nVal });
+            }
+        }
+        else if (op === "3") {
+            const [ id, history, name, group ] = val;
+            if (
+                id && id !== "!?" &&
+                history && history !== "!?" &&
+                name && name !== "!?" &&
+                group && group !== "!?" 
+            ) instructions.push({
+                op: parseInt(op),
+                id: parseInt(id),
+                val: {
+                    history: JSON.parse(history),
+                    name
+                }
+            });
+        }
+    }
+    return instructions.length === 0 ? undefined : instructions;
 }
 
 function packHeaders(name, password, update) {
@@ -100,11 +134,9 @@ function packHeaders(name, password, update) {
 function tokenGen(name, password, mutator = (n,p) => n + (p ? process.env.CRED_SEPARATOR + p : "")) {
     const encName = CryptoJs.AES.encrypt(name, `${process.env.APP_SIGNATURE + process.env.OUTBOUND_NAME}`);
     const nameToken = encName.toString();
-    // CryptoJs.enc.Base64.stringify(CryptoJs.enc.Utf8.parse(encName.toString()));
     const literal = mutator(name, password);
     const encCred = CryptoJs.AES.encrypt(literal, name + `${process.env.APP_SIGNATURE + process.env.OUTBOUND_CRED}`);
     const credToken = encCred.toString();
-    //CryptoJs.enc.Base64.stringify(CryptoJs.enc.Utf8.parse(encCred.toString()));
     return { name:nameToken, credentials:credToken };
 }
 
