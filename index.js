@@ -44,9 +44,10 @@ function signup([ticket, name = "User", password = "secret123"]) {
         const cCreds = packCredentials(name, password);
         return { body: { ticket: cTicket, credentials: cCreds } };
     }, (res) => {
-        const { token, activities, updateKey } = res.data;
+        const { token, activities:userData, updateKey } = res.data;
         const { name: tName, password: tPass } = unpackToken(token);
         const key = unpackKey(updateKey, tName);
+        const activities = unpackActivities(userData, tName, key);
         return Promise.resolve([tName, tPass, key, activities]);
     });
 }
@@ -58,9 +59,10 @@ function login([name = "User", password = "secret123"]) {
             const cCreds = packCredentials(name, password);
             return { body: { credentials: cCreds } };
         }, (res) => {
-            const { token, activities, updateKey } = res.data;
+            const { token, activities:userData, updateKey } = res.data;
             const { name: tName, password: tPass } = unpackToken(token);
             const key = unpackKey(updateKey, tName);
+            const activities = unpackActivities(userData, tName, key);
             return Promise.resolve([tName, tPass, key, activities]);
     });
 }
@@ -68,19 +70,21 @@ function login([name = "User", password = "secret123"]) {
 function update([ update = "1", body = "deadbeef", name = "User", password = "secret123" ]) {
     //handle deadbeef name / password / update
     if (name === "deadbeef" || password === "deadbeef" || update === "deadbeef") post("/update", () => {
-        const rBody = body !== "deadbeef" ? parseUpdateBody(body) : undefined;
+        const updateJSON = body !== "deadbeef" ? parseUpdateBody(body) : undefined;
+        const rBody = updateJSON ? { update: packUpdate(updateJSON) } : undefined;
         return { body: rBody };
     });
     else post("/update", () => {
             const headers = packHeaders(name, password, update);
-            const rBody = body !== "deadbeef" ? parseUpdateBody(body) : undefined;
+            const updateJSON = body !== "deadbeef" ? parseUpdateBody(body) : undefined;
+            const rBody = updateJSON ? { update: packUpdate(updateJSON) } : undefined;
             return { body: rBody, headers };
         }, (res) => {
             const { updateKey } = res.data;
             const output = updateKey ? [ unpackKey(updateKey, name) ] : [ res.status, res.data ];
             return Promise.resolve(output);
     });
-}.0``
+}
 
 function parseUpdateBody(updateStr) {
     const instructions = []
@@ -113,7 +117,8 @@ function parseUpdateBody(updateStr) {
                 id: parseInt(id),
                 val: {
                     history: JSON.parse(history),
-                    name
+                    name,
+                    group: parseInt(group),
                 }
             });
         }
@@ -121,9 +126,17 @@ function parseUpdateBody(updateStr) {
     return instructions.length === 0 ? undefined : instructions;
 }
 
+function post(url, propGenerator = () => undefined, postResponse = (res) => Promise.resolve([res.status, res.data])) {
+    const props = propGenerator();
+    instance.post(url, props?.body || {}, { headers: props?.headers })
+        .then(postResponse)
+        .then((out) => { console.log("RES: ", ...out); })
+        .catch((err) => { console.log(err.response ? [err.response.status, err.response.data] : err); });
+}
+
 function packHeaders(name, password, update) {
     const token = tokenGen(name, password);
-    const key = CryptoJS.AES.encrypt(update, name + `${process.env.APP_SIGNATURE + process.env.OUTBOUND_KEY}`).toString();
+    const key = CryptoJs.AES.encrypt(update, name + `${process.env.APP_SIGNATURE + process.env.OUTBOUND_KEY}`).toString();
     return {
         name: token.name,
         credentials: token.credentials,
@@ -140,21 +153,21 @@ function tokenGen(name, password, mutator = (n,p) => n + (p ? process.env.CRED_S
     return { name:nameToken, credentials:credToken };
 }
 
-function post(url, propGenerator = () => undefined, postResponse = (res) => Promise.resolve([res.status, res.data])) {
-    const props = propGenerator();
-    instance.post(url, props?.body || {}, { headers: props?.headers })
-        .then(postResponse)
-        .then((out) => { console.log("RES: ", ...out); })
-        .catch((err) => { console.log(err.response ? [err.response.status, err.response.data] : err); });
-}
-
 function pack(val) {
     const litStr = `${val}`;
-    return CryptoJs.AES.encrypt(litStr, `${process.env.CLIENT_KEY}`).toString();
+    return CryptoJs.AES.encrypt(litStr, `${process.env.CLIENT_SIGNATURE}`).toString();
 }
 
 function packCredentials(name, password) {
     return pack(name + process.env.CRED_SEPARATOR + password);
+}
+
+function packUpdate(update) {
+    if (!update) return undefined;
+    const jsonString = JSON.stringify(update);
+    const encJson = CryptoJs.AES.encrypt(jsonString, `${process.env.CLIENT_SIGNATURE}`);
+    const encData = CryptoJs.enc.Base64.stringify(CryptoJs.enc.Utf8.parse(encJson.toString()));
+    return encData;
 }
 
 function unpackToken({ name: cName, credentials: cCred }) {
@@ -167,6 +180,12 @@ function unpackToken({ name: cName, credentials: cCred }) {
 function unpackKey(cKeyIn, name) {
     return CryptoJs.AES.decrypt(cKeyIn, name + `${process.env.APP_SIGNATURE}${process.env.OUTBOUND_KEY}`).toString(CryptoJs.enc.Utf8);
 }
+
+function unpackActivities(data, name, updateKey) {
+    const key = `${name}${process.env.OUTBOUND_ACTIVITIES}${updateKey}`;
+    const decData = CryptoJs.enc.Base64.parse(data).toString(CryptoJs.enc.Utf8);
+    const bytes = CryptoJs.AES.decrypt(decData, key).toString(CryptoJs.enc.Utf8);
+    return (!bytes || bytes === "") ? "" : JSON.parse(bytes);}
 
 clientRequest(process.argv.slice(2));
 
