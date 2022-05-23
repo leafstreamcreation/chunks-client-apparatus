@@ -6,7 +6,7 @@ import CryptoJs from 'crypto-js';
 
 const instance = axios.create({
     baseURL: process.env.BACKEND_URL,
-    timeout: 1000
+    timeout: 30000
 });
 
 function clientRequest(args) {
@@ -94,28 +94,29 @@ function parseUpdateBody(updateStr) {
         if (op === "1") {
             //delete
             const [ id ] = val;
-            if (id && id !== "!?") instructions.push({ op: parseInt(op), id: parseInt(id) });
+            if (id && id !== "\\/") instructions.push({ op: parseInt(op), id: parseInt(id) });
         }
         else if (op === "2") {
             //edit
             const [ id, history, name ] = val;
-            if (id && id !== "!?" && history && !(history === "!?" && (!name || name === "!?"))) {
-                const nVal = { history: JSON.parse(history) };
-                if (name && name !== "!?") nVal.name = name;
+            if (id && id !== "\\/" && history && !(history === "\\/" && (!name || name === "\\/"))) {
+                const nVal = {};
+                if (history !== "\\/") nVal.history = JSON.parse(history);
+                if (name && name !== "\\/") nVal.name = name;
                 instructions.push({ op: parseInt(op), id: parseInt(id), val: nVal });
             }
         }
         else if (op === "3") {
             const [ id, history, name, group ] = val;
             if (
-                id && id !== "!?" &&
-                history && history !== "!?" &&
-                name && name !== "!?" &&
-                group && group !== "!?" 
+                id && id !== "\\/" &&
+                history && history !== "\\/" &&
+                name && name !== "\\/" &&
+                group && group !== "\\/" 
             ) instructions.push({
                 op: parseInt(op),
-                id: parseInt(id),
                 val: {
+                    id: parseInt(id),
                     history: JSON.parse(history),
                     name,
                     group: parseInt(group),
