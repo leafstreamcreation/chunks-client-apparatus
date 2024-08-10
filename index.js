@@ -3,6 +3,8 @@ import 'dotenv/config';
 import axios from "axios";
 
 import CryptoJs from 'crypto-js';
+const bcrypt = require("bcryptjs");
+const saltRounds = 13;
 
 const instance = axios.create({
     baseURL: process.env.BACKEND_URL,
@@ -11,11 +13,12 @@ const instance = axios.create({
 
 function clientRequest(args) {
     if (args[0] === "ping") ping();
+    else if (args[0] === "seed") seed(args.slice(1));
     else if (args[0] === "invite") invite(args.slice(1));
     else if (args[0] === "signup") signup(args.slice(1));
     else if (args[0] === "login") login(args.slice(1));
     else if (args[0] === "update") update(args.slice(1));
-    else console.log("invalid request: use ping, invite, signup, login, or update");
+    else console.log("invalid request: use ping, seed, invite, signup, login, or update");
 }
 
 function ping() {
@@ -24,6 +27,11 @@ function ping() {
     }).catch((err) => {
         console.log('ERROR: ', err.response.status, err.response.data);
     });
+}
+
+async function seed([password]) {
+    const salt = await bcrypt.genSalt(saltRounds);
+    return bcrypt.hash(password, salt);
 }
 
 function invite([ticket, password = process.env.ADMIN_PASS]) {
