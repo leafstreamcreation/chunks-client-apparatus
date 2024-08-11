@@ -3,7 +3,8 @@ import 'dotenv/config';
 import axios from "axios";
 
 import CryptoJs from 'crypto-js';
-const bcrypt = require("bcryptjs");
+import bcrypt from 'bcryptjs';
+
 const saltRounds = 13;
 
 const instance = axios.create({
@@ -31,7 +32,8 @@ function ping() {
 
 async function seed([password]) {
     const salt = await bcrypt.genSalt(saltRounds);
-    return bcrypt.hash(password, salt);
+    const hash = await bcrypt.hash(password, salt);
+    console.log(hash);
 }
 
 function invite([ticket, password = process.env.ADMIN_PASS]) {
@@ -52,7 +54,7 @@ function signup([ticket, name = "User", password = "secret123"]) {
         const cCreds = packCredentials(name, password);
         return { body: { ticket: cTicket, credentials: cCreds } };
     }, (res) => {
-        const { token, activities:userData, updateKey } = res.data;
+        const { token, userData, updateKey } = res.data;
         const { name: tName, password: tPass } = unpackToken(token);
         const key = unpackKey(updateKey, tName);
         const activities = unpackActivities(userData, tName, key);
@@ -67,7 +69,7 @@ function login([name = "User", password = "secret123"]) {
             const cCreds = packCredentials(name, password);
             return { body: { credentials: cCreds } };
         }, (res) => {
-            const { token, activities:userData, updateKey } = res.data;
+            const { token, userData, updateKey } = res.data;
             const { name: tName, password: tPass } = unpackToken(token);
             const key = unpackKey(updateKey, tName);
             const activities = unpackActivities(userData, tName, key);
